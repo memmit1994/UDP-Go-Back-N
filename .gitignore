@@ -1,3 +1,5 @@
 .idea/*
 .idea/
-
+*.pyc
+Archive.zip
+response.png
