@@ -1,10 +1,10 @@
 from socket import socket, AF_INET, SOCK_DGRAM,error as socket_error
 from threading import Thread
-from random import randrange
+from random import random,randrange
 from packet import Packet
 from time import time
 from ack import Ack
-
+from math import ceil
 
 class Server:
     def __init__(self, host, port, window_size=10, timeout=1):
@@ -69,11 +69,10 @@ class Server:
             if sender.next_seq_num < sender.base + sender.window_size:
 
                 packet = Packet.from_file(f, sender.next_seq_num)
-                LOST = randrange(0, 100) < 50
+                LOST = random() < 0.5
 
                 # check if all packets are sent
                 if packet is None and sender.base + 1 == sender.next_seq_num:
-                    print len(sender.window)
                     sender.socket.sendto('END', client_addr)
                     break
 
@@ -98,16 +97,23 @@ class Server:
                     del sender.window[sender.base]
                     # increment base to allow for new packets to be sent in the next iteration
                     sender.base = ack.seq_no + 1
+                    # additive increase ( for congestion control )
+                    sender.window_size += 1
+                    print sender.window_size
                     continue
             except:
                 pass
 
             # check for timeout
             if time() - sender.start_time > sender.timeout:
+                # multiplicative decrease ( for congestion control )
+                sender.window_size = ceil(sender.window_size/2)
+                print sender.window_size
                 # resend lastly sent packets
                 for i in range(sender.base, sender.next_seq_num):
                     sender.socket.sendto(sender.window[i], client_addr)
                 # restart timer
                 sender.start_time = time()
+
 
 
