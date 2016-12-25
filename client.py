@@ -3,6 +3,7 @@ from sys import exit
 from packet import Packet
 from ack import Ack
 from time import time
+from random import random
 
 
 class Client:
@@ -43,19 +44,25 @@ class Client:
     def receive_file(self):
         received_file = open("response.png", "w+")
         start_time = time()
+        count = -1
         while True:
-
+            count += 1
             data_string, addr = self.socket.recvfrom(1024)
 
             if data_string != 'END' and data_string != 'File not found.':
-
                 packet = Packet.from_string(data_string)
 
-                if packet.seq_no == self.expected_seq_no:
-                    ack = Ack(self.expected_seq_no)
-                    self.socket.sendto(ack.to_data_string(), addr)
-                    received_file.write(packet.data)
-                    self.expected_seq_no += 1
+                if packet.seq_no <= self.expected_seq_no:
+                    ack = Ack(packet.seq_no)
+                    LOST = random() < 0.05
+                    if not LOST:
+                        self.socket.sendto(ack.to_data_string(), addr)
+                    else:
+                        # uncomment this line to trace which packets were lost
+                        print 'Ack #', packet.seq_no, ' was lost.'
+                    if packet.seq_no == self.expected_seq_no:
+                        self.expected_seq_no += 1
+                        received_file.write(packet.data)
             else:
                 print 'Request ended in ' + str(time() - start_time)
                 received_file.close()
